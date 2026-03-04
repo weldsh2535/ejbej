@@ -13,35 +13,47 @@ class ProductsController extends Controller
     {
         try {
             $products = Product::orderBy('created_at', 'desc')->get();
-            //;
+
+            // Transform the collection to add image URLs
+            $products->transform(function ($product) {
+                $product->image_url = $this->getProductImageUrl($product);
+                // Optionally hide the raw image field if you don't want to expose it
+                // unset($product->image);
+                return $product;
+            });
+
             $total = count($products);
-            // $perPage = $request->query('per_page', 10);
-            // $page = $request->query('page', 1);
-            // $pagedData = new LengthAwarePaginator(
-            //     array_slice($products, ($page - 1) * $perPage, $perPage),
-            //     $total,
-            //     $perPage,
-            //     $page,
-            //     ['path' => url()->current()]
-            // );
 
             return response()->json([
                 'status' => 200,
                 'total' => $total,
                 'data' => $products,
-                // "numberofpages" => $pagedData->lastPage(),
                 "errors" => []
             ], 200);
         } catch (\Exception $e) {
-            // Log the error message for debugging
-            // \Log::error('Error fetching product status: ' . $e->getMessage());
-
             return response()->json([
                 'status' => 500,
                 'message' => 'Something went wrong!',
                 'error' => $e->getMessage(),
             ], 500);
         }
+    }
+
+    private function getProductImageUrl($product)
+    {
+        if (!$product->image) {
+            return asset('images/default-product.png');
+        }
+
+        // Check if the image is already a full URL
+        if (filter_var($product->image, FILTER_VALIDATE_URL)) {
+            return $product->image;
+        }
+
+        // Adjust this path based on where your images are stored
+        // return asset('storage/products/' . $product->image);
+        return asset('uploads/products/' . $product->image);
+        // or return url('images/products/' . $product->image);
     }
     public function store(Request $data)
     {
