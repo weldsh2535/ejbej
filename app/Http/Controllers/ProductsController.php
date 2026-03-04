@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Resources\ProductCollection;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -11,52 +12,31 @@ use Illuminate\Support\Facades\Log;
 class ProductsController extends Controller
 {
     //
-    public function get()
+    public function get(Request $request)
     {
         try {
-            $products = Product::orderBy('created_at', 'desc')->get();
+            $perPage = $request->query('per_page', 10);
 
-            // Transform the collection to add image URLs
-            $products->transform(function ($product) {
-                $product->image_url = $this->getProductImageUrl($product);
-                // Optionally hide the raw image field if you don't want to expose it
-                // unset($product->image);
-                return $product;
-            });
-
-            $total = count($products);
+            $products = Product::orderBy('created_at', 'desc')
+                ->paginate($perPage);
 
             return response()->json([
                 'status' => 200,
-                'total' => $total,
-                'data' => $products,
+                'message' => 'Products retrieved successfully',
+                ...(new ProductCollection($products))->toArray($request),
                 "errors" => []
             ], 200);
         } catch (\Exception $e) {
+            \Log::error('Product fetch error: ' . $e->getMessage());
+
             return response()->json([
                 'status' => 500,
-                'message' => 'Something went wrong!',
-                'error' => $e->getMessage(),
+                'message' => 'Failed to retrieve products',
+                'errors' => ['server' => ['Internal server error']]
             ], 500);
         }
     }
 
-    private function getProductImageUrl($product)
-    {
-        if (!$product->image) {
-            return asset('images/default-product.png');
-        }
-
-        // Check if the image is already a full URL
-        if (filter_var($product->image, FILTER_VALIDATE_URL)) {
-            return $product->image;
-        }
-
-        // Adjust this path based on where your images are stored
-        // return asset('storage/products/' . $product->image);
-        return asset('uploads/products/' . $product->image);
-        // or return url('images/products/' . $product->image);
-    }
     public function store(Request $request)
     {
         try {
