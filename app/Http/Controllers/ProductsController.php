@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class ProductsController extends Controller
 {
@@ -55,43 +57,114 @@ class ProductsController extends Controller
         return asset('uploads/products/' . $product->image);
         // or return url('images/products/' . $product->image);
     }
-    public function store(Request $data)
+    public function store(Request $request)
     {
         try {
-            $imagePath = null;
-            if ($data->hasFile('image')) {
-                $file = $data->file('image');
-                $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-                $fileName = time() . '_' . Str::slug($originalName) . '.' . $file->getClientOriginalExtension();
-
-                $file->move(public_path('uploads/products/'), $fileName);
-
-                $imagePath = $fileName;
-            }
-            $post = Product::create([
-                'title' => $data['title'],
-                'location' => $data['location'],
-                'category_id' => $data['category_id'],
-                'description' => $data['description'],
-                'price' => $data['price'],
-                'brand' => $data['brand'],
-                'image' => $imagePath,
-                'is_active' => $data['is_active'],
-                'user_id' => $data['user_id']
+            $validatedData = $request->validate([
+                'title' => 'required|string|max:255',
+                'location' => 'required|string|max:255',
+                'category_id' => 'required|integer|exists:categories,id',
+                'description' => 'required|string',
+                'price' => 'required|numeric|min:0',
+                'brand' => 'required|string|max:255',
+                'is_active' => 'boolean',
+                'user_id' => 'required|integer|exists:users,id',
+                'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048', // 2MB max
+            ], [
+                'image.max' => 'The image must not be larger than 2MB.',
+                'image.mimes' => 'The image must be a file of type: jpeg, png, jpg, gif, webp.',
             ]);
+
+            $imagePath = null;
+
+            if ($request->hasFile('image')) {
+                $imagePath = $this->uploadImage($request->file('image'));
+            }
+
+            $product = Product::create([
+                'title' => $validatedData['title'],
+                'location' => $validatedData['location'],
+                'category_id' => $validatedData['category_id'],
+                'description' => $validatedData['description'],
+                'price' => $validatedData['price'],
+                'brand' => $validatedData['brand'],
+                'image' => $imagePath,
+                'is_active' => $validatedData['is_active'] ?? true,
+                'user_id' => $validatedData['user_id']
+            ]);
+
             return response()->json([
-                'status' => 200,
-                'data' => $post,
-            ], 200);
+                'status' => 201, // 201 Created is more appropriate for store operations
+                'data' => $product,
+                'message' => 'Product created successfully'
+            ], 201);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'status' => 422,
+                'message' => 'Validation failed',
+                'errors' => $e->errors()
+            ], 422);
         } catch (\Exception $e) {
-            // Log the error message for debugging
-            // \Log::error('Error fetching student status: ' . $e->getMessage());
+            // Log the error with context
+            \Log::error('Product creation failed', [
+                'message' => $e->getMessage(),
+                'user_id' => $request->user_id,
+                'trace' => $e->getTraceAsString()
+            ]);
 
             return response()->json([
                 'status' => 500,
-                'message' => 'Something went wrong!',
-                'error' => $e->getMessage(),
+                'message' => 'An error occurred while creating the product. Please try again.'
             ], 500);
+        }
+    }
+
+    /**
+     * Upload image with optimized handling
+     */
+    private function uploadImage($file)
+    {
+        try {
+            $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
+            $sluggedName = Str::slug($originalName);
+            $extension = $file->getClientOriginalExtension();
+            $fileName = time() . '_' . $sluggedName . '.' . $extension;
+
+            // Create directory if it doesn't exist
+            $uploadPath = public_path('uploads/products/');
+            if (!file_exists($uploadPath)) {
+                mkdir($uploadPath, 0755, true);
+            }
+
+            // Optimize image if it's too large (optional, requires Intervention Image package)
+            if (in_array($extension, ['jpeg', 'jpg', 'png']) && $file->getSize() > 1024 * 1024) { // > 1MB
+                $this->optimizeImage($file, $uploadPath . $fileName);
+            } else {
+                $file->move($uploadPath, $fileName);
+            }
+
+            return $fileName;
+        } catch (\Exception $e) {
+            \Log::error('Image upload failed: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Optimize image (requires Intervention Image package)
+     * Install: composer require intervention/image
+     */
+    private function optimizeImage($file, $path)
+    {
+        if (class_exists('\Intervention\Image\Facades\Image')) {
+            \Intervention\Image\Facades\Image::make($file)
+                ->resize(1200, null, function ($constraint) {
+                    $constraint->aspectRatio();
+                    $constraint->upsize();
+                })
+                ->save($path, 85); // 85% quality
+        } else {
+            $file->move(dirname($path), basename($path));
         }
     }
 }
