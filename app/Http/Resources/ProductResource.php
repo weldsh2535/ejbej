@@ -5,7 +5,7 @@ namespace App\Http\Resources;
 use Illuminate\Http\Resources\Json\ResourceCollection;
 use App\Http\Resources\UserResource;
 
-class ProductCollection extends ResourceCollection
+class ProductResource extends ResourceCollection
 {
     /**
      * Transform the resource collection into an array.

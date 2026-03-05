@@ -2,11 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\ProductCollection;
+use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 
 class ProductsController extends Controller
@@ -30,7 +29,7 @@ class ProductsController extends Controller
             return response()->json([
                 'status' => 200,
                 'message' => 'Products retrieved successfully',
-                ...(new ProductCollection($products))->toArray($request),
+                ...(new ProductResource($products))->toArray($request),
                 "errors" => []
             ], 200);
         } catch (\Exception $e) {
