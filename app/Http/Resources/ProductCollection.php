@@ -56,6 +56,6 @@ class ProductCollection extends ResourceCollection
             return $product->image;
         }
         
-        return asset('storage/products/' . $product->image);
+        return asset('uploads/products/' . $product->image);
     }
 }
