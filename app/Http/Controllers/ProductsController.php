@@ -17,9 +17,15 @@ class ProductsController extends Controller
         try {
             $perPage = $request->query('per_page', 10);
 
+            // Log the query to see what's happening
+            \Log::info('Fetching products with user relationship');
+
             $products = Product::with('user') // Eager load user
                 ->orderBy('created_at', 'desc')
                 ->paginate($perPage);
+
+            // Log the count of products
+            \Log::info('Products found: ' . $products->count());
 
             return response()->json([
                 'status' => 200,
@@ -28,12 +34,17 @@ class ProductsController extends Controller
                 "errors" => []
             ], 200);
         } catch (\Exception $e) {
-            \Log::error('Product fetch error: ' . $e->getMessage());
+            // Log the full error with stack trace
+            \Log::error('Product fetch error: ' . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
 
             return response()->json([
                 'status' => 500,
-                'message' => 'Failed to retrieve products',
-                'errors' => ['server' => ['Internal server error']]
+                'message' => 'Failed to retrieve products: ' . $e->getMessage(), // Temporarily show error for debugging
+                'errors' => ['server' => [$e->getMessage()]]
             ], 500);
         }
     }
