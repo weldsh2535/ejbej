@@ -17,7 +17,8 @@ class ProductsController extends Controller
         try {
             $perPage = $request->query('per_page', 10);
 
-            $products = Product::orderBy('created_at', 'desc')
+            $products = Product::with('user') // Eager load user
+                ->orderBy('created_at', 'desc')
                 ->paginate($perPage);
 
             return response()->json([

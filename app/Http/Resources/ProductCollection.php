@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\ResourceCollection;
+use App\Http\Resources\UserResource;
 
 class ProductCollection extends ResourceCollection
 {
@@ -24,7 +25,7 @@ class ProductCollection extends ResourceCollection
                     'price' => $product->price,
                     'location' => $product->location,
                     'category_id' => $product->category_id,
-                    'user_id' => $product->user_id,
+                    'user' => $product->user ? new UserResource($product->user) : null,
                     'is_active' => $product->is_active,
                     'image' => $product->image,
                     'image_url' => $this->getImageUrl($product),

@@ -26,6 +26,8 @@ class UserResource extends JsonResource
             'email_verified_at' => $this->email_verified_at,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
+            'profile_image' => $this->profile_image,
+            'profile_image_url' => $this->profile_image ? asset('uploads/profiles/' . $this->profile_image) : null,
             'roles' => RoleResource::collection($this->whenLoaded('roles')),
             'permissions' => $this->whenLoaded('permissions', function () {
                 return $this->permissions->pluck('name');
