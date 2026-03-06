@@ -6,12 +6,10 @@ use App\Http\Controllers\CategoryController;
 use App\Http\Controllers\Chat\ConversationController;
 use App\Http\Controllers\Chat\MessageController;
 use App\Http\Controllers\Chat\OfferController;
+use App\Http\Controllers\FavoriteController;
 use App\Http\Controllers\ProductsController;
 use App\Http\Controllers\SubCategoryController;
-use App\Models\Product;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Models\User;
 
 /*
 |--------------------------------------------------------------------------
@@ -35,6 +33,24 @@ Route::middleware('auth:sanctum')->group(function () {
     // Your Products routes
     Route::get('/products', [ProductsController::class, 'index']);
     Route::post('/add_products', [ProductsController::class, 'store']);
+    // Product Filter Routes
+    Route::get('/products/filter', [ProductsController::class, 'filterProducts']);
+    Route::get('/products/search', [ProductsController::class, 'searchByName']);
+
+    // Get products by category ID
+    Route::get('/products/category/{categoryId}', [ProductsController::class, 'getByCategory']);
+
+    // Get products by seller ID
+    Route::get('/sellers/{sellerId}/products', [ProductsController::class, 'getProductsBySeller']);
+
+    // Get products by seller username
+    Route::get('/sellers/username/{username}/products', [ProductsController::class, 'getProductsBySellerUsername']);
+
+    // Get seller profile with recent products
+    Route::get('/sellers/{sellerId}/profile', [ProductsController::class, 'getSellerProfile']);
+
+    // Get all sellers with product counts
+    Route::get('/sellers', [ProductsController::class, 'getAllSellers']);
 
     Route::get('/categorys', [CategoryController::class, 'get']);
     Route::post('/add_categorys', [CategoryController::class, 'store']);
@@ -61,4 +77,14 @@ Route::middleware('auth:sanctum')->group(function () {
     // Offers
     Route::post('/chat/conversations/{conversation}/offers', [OfferController::class, 'store']);
     Route::put('/chat/offers/{offer}', [OfferController::class, 'update']);
+
+    // Favorites routes
+    Route::prefix('favorites')->group(function () {
+        Route::get('/', [FavoriteController::class, 'index']); // Get all favorites
+        Route::post('/', [FavoriteController::class, 'store']); // Add to favorites
+        Route::get('/stats', [FavoriteController::class, 'stats']); // Get favorites stats
+        Route::post('/batch-check', [FavoriteController::class, 'batchCheck']); // Batch check multiple products
+        Route::get('/check/{productId}', [FavoriteController::class, 'check']); // Check single product
+        Route::delete('/{productId}', [FavoriteController::class, 'destroy']); // Remove from favorites
+    });
 });

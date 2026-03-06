@@ -11,37 +11,24 @@ class CategoryController extends Controller
     public function get()
     {
         try {
-            $categorys = Category::orderBy('created_at', 'desc')->get();
-            //;
-            $total = count($categorys);
-            // $perPage = $request->query('per_page', 10);
-            // $page = $request->query('page', 1);
-            // $pagedData = new LengthAwarePaginator(
-            //     array_slice($products, ($page - 1) * $perPage, $perPage),
-            //     $total,
-            //     $perPage,
-            //     $page,
-            //     ['path' => url()->current()]
-            // );
+            $categories = Category::orderBy('created_at', 'desc')
+                ->get(['id', 'name', 'slug', 'is_active']);
 
             return response()->json([
                 'status' => 200,
-                'total' => $total,
-                'data' => $categorys,
-                // "numberofpages" => $pagedData->lastPage(),
+                'total' => $categories->count(),
+                'data' => $categories,
                 "errors" => []
             ], 200);
         } catch (\Exception $e) {
-            // Log the error message for debugging
-            // \Log::error('Error fetching product status: ' . $e->getMessage());
-
             return response()->json([
                 'status' => 500,
                 'message' => 'Something went wrong!',
-                'error' => $e->getMessage(),
+                'error' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
+
     public function store(Request $data)
     {
         try {
