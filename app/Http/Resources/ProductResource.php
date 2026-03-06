@@ -16,8 +16,9 @@ class ProductResource extends JsonResource
     public function toArray($request)
     {
         $userData = null;
+        $categoryData = null;
 
-        // Safely check if user relationship exists and is loaded
+        // User data
         if ($this->relationLoaded('user') && $this->user) {
             try {
                 $userData = new UserResource($this->user);
@@ -25,11 +26,24 @@ class ProductResource extends JsonResource
                 \Log::warning('Failed to load user for product: ' . $this->id, [
                     'error' => $e->getMessage()
                 ]);
-
-                // Fallback to basic user data
                 $userData = [
                     'id' => $this->user_id,
                     'full_name' => 'User ' . $this->user_id,
+                ];
+            }
+        }
+
+        // Category data using CategoryResource
+        if ($this->relationLoaded('category') && $this->category) {
+            try {
+                $categoryData = new CategoryResource($this->category);
+            } catch (\Exception $e) {
+                \Log::warning('Failed to load category for product: ' . $this->id, [
+                    'error' => $e->getMessage()
+                ]);
+                $categoryData = [
+                    'id' => $this->category_id,
+                    'name' => 'Category ' . $this->category_id,
                 ];
             }
         }
@@ -41,6 +55,7 @@ class ProductResource extends JsonResource
             'brand' => $this->brand,
             'price' => $this->price,
             'location' => $this->location,
+            'category' => $categoryData,
             'category_id' => $this->category_id,
             'user' => $userData,
             'user_id' => $this->user_id,
