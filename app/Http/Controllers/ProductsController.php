@@ -580,7 +580,7 @@ class ProductsController extends Controller
         }
     }
 
-
+    // image uploads
     private function handleImageUploads(Product $product, StoreProductRequest $request): void
     {
         $images = $request->file('images');
