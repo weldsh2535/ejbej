@@ -17,7 +17,6 @@ f<?php
                 $table->string('brand');
                 $table->decimal('price', 8, 2);
                 $table->text('description')->nullable();
-                $table->string('image')->nullable();
                 $table->string('location')->nullable();
                 $table->boolean('is_active')->default(true);
 

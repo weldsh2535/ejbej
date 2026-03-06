@@ -2,160 +2,149 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreProductRequest;
+use App\Http\Resources\ProductCollection;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
+use App\Models\ProductImage;
+use App\Services\ImageUploadService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpFoundation\JsonResponse;
 
 class ProductsController extends Controller
 {
-    //
-    public function get(Request $request)
+    public function __construct(
+        private readonly ImageUploadService $imageService
+    ) {}
+
+    /**
+     * Display a paginated listing of products.
+     *
+     * @param Request $request
+     * @return ProductCollection
+     */
+    public function index(Request $request)
     {
-        try {
-            $perPage = $request->query('per_page', 10);
+        $perPage = $request->input('per_page', 15);
+        $sortBy = $request->input('sort_by', 'created_at');
+        $sortOrder = $request->input('sort_order', 'desc');
 
-            // Log the query to see what's happening
-            \Log::info('Fetching products with user relationship');
+        $products = Product::with(['user', 'images', 'category'])
+            ->when($request->has('category_id'), function ($query) use ($request) {
+                $query->where('category_id', $request->category_id);
+            })
+            ->when($request->has('search'), function ($query) use ($request) {
+                $search = $request->search;
+                $query->where(function ($q) use ($search) {
+                    $q->where('title', 'like', "%{$search}%")
+                        ->orWhere('description', 'like', "%{$search}%")
+                        ->orWhere('brand', 'like', "%{$search}%");
+                });
+            })
+            ->when($request->has('min_price'), function ($query) use ($request) {
+                $query->where('price', '>=', $request->min_price);
+            })
+            ->when($request->has('max_price'), function ($query) use ($request) {
+                $query->where('price', '<=', $request->max_price);
+            })
+            ->when($request->has('location'), function ($query) use ($request) {
+                $query->where('location', 'like', "%{$request->location}%");
+            })
+            ->when($request->has('is_active'), function ($query) use ($request) {
+                $query->where('is_active', $request->boolean('is_active'));
+            })
+            ->orderBy($sortBy, $sortOrder)
+            ->paginate($perPage)
+            ->withQueryString(); // Preserve query parameters in pagination links
 
-            $products = Product::with('user') // Eager load user
-                ->orderBy('created_at', 'desc')
-                ->paginate($perPage);
-
-            // Log the count of products
-            \Log::info('Products found: ' . $products->count());
-
-            return response()->json([
-                'status' => 200,
-                'message' => 'Products retrieved successfully',
-                ...(new ProductResource($products))->toArray($request),
-                "errors" => []
-            ], 200);
-        } catch (\Exception $e) {
-            // Log the full error with stack trace
-            \Log::error('Product fetch error: ' . $e->getMessage(), [
-                'file' => $e->getFile(),
-                'line' => $e->getLine(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'status' => 500,
-                'message' => 'Failed to retrieve products: ' . $e->getMessage(), // Temporarily show error for debugging
-                'errors' => ['server' => [$e->getMessage()]]
-            ], 500);
-        }
+        return new ProductCollection($products);
     }
 
-    public function store(Request $request)
+    /**
+     * Store a newly created product.
+     *
+     * @param StoreProductRequest $request
+     * @return JsonResponse
+     */
+    public function store(StoreProductRequest $request): JsonResponse
     {
         try {
-            $validatedData = $request->validate([
-                'title' => 'required|string|max:255',
-                'location' => 'required|string|max:255',
-                'category_id' => 'required|integer|exists:categories,id',
-                'description' => 'required|string',
-                'price' => 'required|numeric|min:0',
-                'brand' => 'required|string|max:255',
-                'is_active' => 'boolean',
-                'user_id' => 'required|integer|exists:users,id',
-                'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:2048', // 2MB max
-            ], [
-                'image.max' => 'The image must not be larger than 2MB.',
-                'image.mimes' => 'The image must be a file of type: jpeg, png, jpg, gif, webp.',
-            ]);
+            DB::beginTransaction();
 
-            $imagePath = null;
+            // Create product
+            $product = Product::create($request->safe()->except(['images', 'primary_image_index']));
 
-            if ($request->hasFile('image')) {
-                $imagePath = $this->uploadImage($request->file('image'));
+            // Handle image uploads
+            if ($request->hasFile('images')) {
+                $this->handleImageUploads($product, $request);
             }
 
-            $product = Product::create([
-                'title' => $validatedData['title'],
-                'location' => $validatedData['location'],
-                'category_id' => $validatedData['category_id'],
-                'description' => $validatedData['description'],
-                'price' => $validatedData['price'],
-                'brand' => $validatedData['brand'],
-                'image' => $imagePath,
-                'is_active' => $validatedData['is_active'] ?? true,
-                'user_id' => $validatedData['user_id']
-            ]);
+            DB::commit();
+
+            // Load relationships for response
+            $product->load(['images', 'category', 'user']);
 
             return response()->json([
-                'status' => 201, // 201 Created is more appropriate for store operations
-                'data' => $product,
-                'message' => 'Product created successfully'
+                'success' => true,
+                'message' => 'Product created successfully.',
+                'data' => new ProductResource($product)
             ], 201);
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return response()->json([
-                'status' => 422,
-                'message' => 'Validation failed',
-                'errors' => $e->errors()
-            ], 422);
-        } catch (\Exception $e) {
-            // Log the error with context
-            \Log::error('Product creation failed', [
-                'message' => $e->getMessage(),
-                'user_id' => $request->user_id,
+        } catch (\Throwable $e) {
+            DB::rollBack();
+
+            Log::error('Product creation failed', [
+                'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
 
             return response()->json([
-                'status' => 500,
-                'message' => 'An error occurred while creating the product. Please try again.'
+                'success' => false,
+                'message' => 'Failed to create product: ' . $e->getMessage()
             ], 500);
         }
     }
 
-    /**
-     * Upload image with optimized handling
-     */
-    private function uploadImage($file)
+
+    private function handleImageUploads(Product $product, StoreProductRequest $request): void
     {
-        try {
-            $originalName = pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME);
-            $sluggedName = Str::slug($originalName);
-            $extension = $file->getClientOriginalExtension();
-            $fileName = time() . '_' . $sluggedName . '.' . $extension;
+        $images = $request->file('images');
 
-            // Create directory if it doesn't exist
-            $uploadPath = public_path('uploads/products/');
-            if (!file_exists($uploadPath)) {
-                mkdir($uploadPath, 0755, true);
-            }
-
-            // Optimize image if it's too large (optional, requires Intervention Image package)
-            if (in_array($extension, ['jpeg', 'jpg', 'png']) && $file->getSize() > 1024 * 1024) { // > 1MB
-                $this->optimizeImage($file, $uploadPath . $fileName);
-            } else {
-                $file->move($uploadPath, $fileName);
-            }
-
-            return $fileName;
-        } catch (\Exception $e) {
-            \Log::error('Image upload failed: ' . $e->getMessage());
-            return null;
+        // Convert single image to array
+        if (!is_array($images)) {
+            $images = [$images];
         }
-    }
 
-    /**
-     * Optimize image (requires Intervention Image package)
-     * Install: composer require intervention/image
-     */
-    private function optimizeImage($file, $path)
-    {
-        if (class_exists('\Intervention\Image\Facades\Image')) {
-            \Intervention\Image\Facades\Image::make($file)
-                ->resize(1200, null, function ($constraint) {
-                    $constraint->aspectRatio();
-                    $constraint->upsize();
-                })
-                ->save($path, 85); // 85% quality
-        } else {
-            $file->move(dirname($path), basename($path));
+        // Filter out null values and reindex
+        $images = array_values(array_filter($images));
+
+        if (empty($images)) {
+            Log::warning('No valid images to upload');
+            return;
         }
+
+        // Upload images using the service
+        $uploadedImages = $this->imageService->uploadMultiple($images, 'products/' . $product->id);
+
+        // Save to database
+        foreach ($uploadedImages as $index => $imageData) {
+            $product->images()->create([
+                'product_id' => $product->id,
+                'path' => $imageData['path'],
+                'filename' => $imageData['filename'],
+                'mime_type' => $imageData['mime_type'],
+                'size' => $imageData['size'],
+                'sort_order' => $index,
+                'is_primary' => $index === (int)($request->input('primary_image_index', 0)),
+                'alt_text' => $request->input('title') // Optional: use product title as alt text
+            ]);
+        }
+
+        Log::info('Images saved to database', [
+            'product_id' => $product->id,
+            'count' => count($uploadedImages)
+        ]);
     }
 }

@@ -33,7 +33,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/me', [AuthController::class, 'me']);
 
     // Your Products routes
-    Route::get('/products', [ProductsController::class, 'get']);
+    Route::get('/products', [ProductsController::class, 'index']);
     Route::post('/add_products', [ProductsController::class, 'store']);
 
     Route::get('/categorys', [CategoryController::class, 'get']);

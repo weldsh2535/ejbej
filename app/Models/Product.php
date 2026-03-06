@@ -1,55 +1,47 @@
 <?php
-
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Product extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
-        'title',
-        'brand',
-        'location',
-        'description',
-        'price',
-        'user_id',
-        'image',
-        'category_id',
-        'is_active'
+        'title', 'location', 'category_id', 'description',
+        'price', 'brand', 'is_active', 'user_id'
     ];
-    /**
-     * Get the user that owns the product
-     */
-    public function user()
+
+    protected $casts = [
+        'price' => 'decimal:2',
+        'is_active' => 'boolean'
+    ];
+
+    public function images()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->hasMany(ProductImage::class)->orderBy('sort_order');
     }
 
-    /**
-     * Get the category that the product belongs to
-     */
+    public function primaryImage()
+    {
+        return $this->hasOne(ProductImage::class)->where('is_primary', true);
+    }
+
     public function category()
     {
-        return $this->belongsTo(Category::class, 'category_id');
+        return $this->belongsTo(Category::class);
     }
 
-    protected $appends = ['image_url'];
-
-    // Define the accessor
-    public function getImageUrlAttribute()
+    public function user()
     {
-        // If your image is stored in storage/app/public/products
-        if ($this->image) {
-            return asset('uploads/products/' . $this->image);
-        }
+        return $this->belongsTo(User::class);
+    }
 
-        // Or if stored in public/uploads/products
+    public function getPrimaryImageUrlAttribute(): ?string
+    {
+        return $this->primaryImage?->url;
+    }
 
-
-        // Return default image if no image
-        return asset('images/default-product.png');
+    public function getImageUrlsAttribute(): array
+    {
+        return $this->images->map->url->toArray();
     }
 }
