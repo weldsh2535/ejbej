@@ -29,6 +29,7 @@ Route::post('/register', [AuthController::class, 'register']);
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
+    Route::put('/user/profile', [AuthController::class, 'updateProfile']);
 
     // Your Products routes
     Route::get('/products', [ProductsController::class, 'index']);
@@ -52,15 +53,20 @@ Route::middleware('auth:sanctum')->group(function () {
     // Get all sellers with product counts
     Route::get('/sellers', [ProductsController::class, 'getAllSellers']);
 
-    Route::get('/categorys', [CategoryController::class, 'get']);
-    Route::post('/add_categorys', [CategoryController::class, 'store']);
-    Route::put('/categorys/{id}', [CategoryController::class, 'update']);
-    Route::delete('/categorys/{id}', [CategoryController::class, 'delete']);
+    // Category
+    Route::get('/categories', [CategoryController::class, 'index']);        // Get all categories
+    Route::post('/categories', [CategoryController::class, 'store']);       // Create new category
+    Route::get('/categories/{id}', [CategoryController::class, 'show']);    // Get single category (optional)
+    Route::put('/categories/{id}', [CategoryController::class, 'update']);  // Update category
+    Route::delete('/categories/{id}', [CategoryController::class, 'destroy']); // Delete category
+    Route::get('/categories/{categoryId}/subcategories', [CategoryController::class, 'getByCategory']);
 
-    Route::get('/sub_categorys', [SubCategoryController::class, 'get']);
-    Route::post('/add_sub_categorys', [SubCategoryController::class, 'store']);
-    Route::put('/sub_categorys/{id}', [SubCategoryController::class, 'update']);
-    Route::delete('/sub_categorys/{id}', [SubCategoryController::class, 'delete']);
+    //SubCategory
+    Route::get('/subcategories', [SubCategoryController::class, 'index']);  // 'get' → 'index'
+    Route::post('/subcategories', [SubCategoryController::class, 'store']);
+    Route::get('/subcategories/{id}', [SubCategoryController::class, 'show']); // If needed
+    Route::put('/subcategories/{id}', [SubCategoryController::class, 'update']);
+    Route::delete('/subcategories/{id}', [SubCategoryController::class, 'destroy']); // 'delete' → 'dest
 
     // Chat conversations
     Route::get('/chat/conversations', [ConversationController::class, 'index']);

@@ -204,8 +204,8 @@
             </div>
 
             <address class="content">
-              419 State 414 Rte
-              Beaver Dams, New York(NY), 14812, USA
+              Addis Abeba Ethiopia
+              Bole,Admas Building ,Et
             </address>
           </li>
 
@@ -214,7 +214,7 @@
               <ion-icon name="call-outline"></ion-icon>
             </div>
 
-            <a href="tel:+607936-8058" class="footer-nav-link">(607) 936-8058</a>
+            <a href="tel:+607936-8058" class="footer-nav-link">(+251) 925-357022</a>
           </li>
 
           <li class="footer-nav-item flex">
@@ -222,7 +222,7 @@
               <ion-icon name="mail-outline"></ion-icon>
             </div>
 
-            <a href="mailto:example@gmail.com" class="footer-nav-link">example@gmail.com</a>
+            <a href="mailto:example@gmail.com" class="footer-nav-link">ejbejsupport@gmail.com</a>
           </li>
 
         </ul>
@@ -276,7 +276,7 @@
         <img src="./assets/images/payment.png" alt="payment method" class="payment-img">
 
         <p class="copyright">
-          Copyright &copy; <a href="#">Yene</a> all rights reserved.
+          Copyright &copy; <a href="#">Ejbej</a> all rights reserved.
         </p>
 
       </div>

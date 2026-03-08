@@ -69,7 +69,7 @@
 
             <a href="#" class="header-logo">
                 {{-- <img src="./assets/images/logo/logo.svg" alt="Yene's logo" width="120" height="36"> --}}
-                <h1 class="text-4xl font-bold text-gray-800">Yene</h1>
+                <h1 class="text-4xl font-bold text-gray-800">እጅ በእጅ</h1>
             </a>
 
             <div class="header-search-container">

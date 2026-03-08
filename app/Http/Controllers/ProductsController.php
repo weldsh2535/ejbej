@@ -2,21 +2,19 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\CategoryFilterRequest;
-use App\Http\Requests\SearchRequest;
-use App\Http\Requests\StoreProductRequest;
-use App\Http\Resources\ProductCollection;
-use App\Http\Resources\ProductResource;
-use App\Http\Resources\SellerResource;
+use App\Http\Requests\Category\CategoryFilterRequest;
+use App\Http\Requests\Common\SearchRequest;
+use App\Http\Requests\Product\StoreProductRequest;
+use App\Http\Resources\Products\ProductCollection;
+use App\Http\Resources\Products\ProductResource;
+use App\Http\Resources\Users\SellerResource;
 use App\Models\Category;
 use App\Models\Product;
-use App\Models\ProductImage;
 use App\Models\User;
 use App\Services\ImageUploadService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\JsonResponse;
 

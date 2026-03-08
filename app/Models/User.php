@@ -12,6 +12,7 @@ class User extends Authenticatable
 {
     protected $table = 'users'; // Make sure this matches your users table
     use HasApiTokens, Notifiable; // Add HasApiTokens here
+    protected $appends = ['avatar_url', 'full_name'];
 
     protected $fillable = [
         'first_name',
@@ -22,6 +23,7 @@ class User extends Authenticatable
         'password',
         'profile_image',
         'email_verified_at',
+        'avatar',
     ];
 
     protected $hidden = [
@@ -32,6 +34,19 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
     ];
+
+    public function getAvatarUrlAttribute()
+    {
+        if ($this->avatar) {
+            return url('uploads/avatars/' . $this->avatar);
+        }
+
+        // Return default avatar if you have one
+        // return url('uploads/avatars/default-avatar.png');
+        return null;
+    }
+
+
     // Accessor for full_name
     public function getFullNameAttribute()
     {

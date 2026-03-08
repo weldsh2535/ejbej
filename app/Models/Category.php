@@ -11,8 +11,14 @@ use Illuminate\Support\Str;
 class Category extends Model
 {
     protected $fillable = [
-        'name', 'slug', 'description', 'parent_id', 
-        'icon', 'image', 'is_active', 'sort_order'
+        'name',
+        'slug',
+        'description',
+        'parent_id',
+        'icon',
+        'image',
+        'is_active',
+        'sort_order'
     ];
 
     protected $casts = [
@@ -36,11 +42,10 @@ class Category extends Model
     /**
      * Get the products for this category
      */
-    public function products(): HasMany
+    public function products()
     {
-        return $this->hasMany(Product::class);
+        return $this->hasMany(Product::class, 'category_id');
     }
-
     /**
      * Get the parent category
      */
@@ -65,6 +70,7 @@ class Category extends Model
         return $this->products()->where('is_active', true)->count();
     }
 
+
     /**
      * Get image URL
      */
@@ -83,12 +89,12 @@ class Category extends Model
     {
         $path = [$this->name];
         $parent = $this->parent;
-        
+
         while ($parent) {
             array_unshift($path, $parent->name);
             $parent = $parent->parent;
         }
-        
+
         return implode(' > ', $path);
     }
 
@@ -114,5 +120,29 @@ class Category extends Model
     public function scopeBySlug($query, $slug)
     {
         return $query->where('slug', $slug);
+    }
+
+    // Relationship with subcategories
+    public function subcategories()
+    {
+        return $this->hasMany(SubCategory::class, 'category_id');
+    }
+
+    // Accessor to count products directly
+    public function getProductsCountAttribute()
+    {
+        return $this->products()->count();
+    }
+
+    // Accessor to count products including subcategories
+    public function getAllProductsCountAttribute()
+    {
+        $count = $this->products()->count();
+
+        foreach ($this->subcategories as $subcategory) {
+            $count += $subcategory->products()->count();
+        }
+
+        return $count;
     }
 }
