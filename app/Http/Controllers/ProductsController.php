@@ -139,34 +139,41 @@ class ProductsController extends Controller
             // Validate category exists
             $category = Category::findOrFail($categoryId);
 
-            // Get products filtered by category_id
-            $products = Product::where('category_id', $categoryId)
-                ->where('is_active', true)
-                ->with(['images', 'category', 'user'])
-                ->orderBy('created_at', 'desc')
-                ->paginate($request->input('per_page', 15));
+            // Get products filtered by category_id with all the same filters as index
+            $perPage = $request->input('per_page', 15);
+            $sortBy = $request->input('sort_by', 'created_at');
+            $sortOrder = $request->input('sort_order', 'desc');
 
-            return response()->json([
-                'success' => true,
-                'message' => "Products in category: {$category->name}",
-                'category' => [
-                    'id' => $category->id,
-                    'name' => $category->name,
-                    'slug' => $category->slug,
-                ],
-                'total' => $products->total(),
-                'data' => ProductResource::collection($products),
-                'pagination' => [
-                    'current_page' => $products->currentPage(),
-                    'per_page' => $products->perPage(),
-                    'total' => $products->total(),
-                    'last_page' => $products->lastPage(),
-                ]
-            ], 200);
+            $products = Product::with(['user', 'images', 'category'])
+                ->where('category_id', $categoryId)
+                ->where('is_active', true)
+                ->when($request->has('search'), function ($query) use ($request) {
+                    $search = $request->search;
+                    $query->where(function ($q) use ($search) {
+                        $q->where('title', 'like', "%{$search}%")
+                            ->orWhere('description', 'like', "%{$search}%")
+                            ->orWhere('brand', 'like', "%{$search}%");
+                    });
+                })
+                ->when($request->has('min_price'), function ($query) use ($request) {
+                    $query->where('price', '>=', $request->min_price);
+                })
+                ->when($request->has('max_price'), function ($query) use ($request) {
+                    $query->where('price', '<=', $request->max_price);
+                })
+                ->when($request->has('location'), function ($query) use ($request) {
+                    $query->where('location', 'like', "%{$request->location}%");
+                })
+                ->orderBy($sortBy, $sortOrder)
+                ->paginate($perPage)
+                ->withQueryString();
+
+            // Return using the same collection as index
+            return new ProductCollection($products);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json([
-                'success' => false,
-                'message' => 'Category not found'
+                'message' => 'Category not found',
+                'errors' => ['category' => ['The specified category does not exist.']]
             ], 404);
         } catch (\Exception $e) {
             Log::error('Failed to get products by category', [
@@ -175,8 +182,8 @@ class ProductsController extends Controller
             ]);
 
             return response()->json([
-                'success' => false,
-                'message' => 'Failed to retrieve products'
+                'message' => 'Failed to retrieve products',
+                'errors' => ['server' => ['An error occurred while retrieving products.']]
             ], 500);
         }
     }
